@@ -1,20 +1,17 @@
 :root {
-    --primary:#034367;
-    --second:#FFF112;
-    --tertiary:#ffffff;
+    --primary: #034367;
+    --second: #fff112;
+    --tertiary: #ffffff;
 }
 
-
-.container{
+.container {
     margin: 0 3rem 0 3rem;
 }
 
-
-.vektor{
-    border: solid 1rem #FFF112;
+.vektor {
+    border: solid 1rem #fff112;
     opacity: 0.2;
 }
-
 
 /* icon */
 .child-bot-footer a {
@@ -29,84 +26,77 @@
 
 /* Atau bisa juga memberi warna spesifik untuk masing-masing ikon */
 .fa-instagram:hover {
-    color: #E4405F;
+    color: #e4405f;
 }
 
 .fa-facebook-f:hover {
-    color: #1877F2;
+    color: #1877f2;
 }
 
 .fa-youtube:hover {
-    color: #FF0000;
+    color: #ff0000;
 }
 
-
 /* btn */
-.btn{
+.btn {
     padding: 0.1rem 2rem 0.1rem 2rem;
-    background-color: #FFF112;
+    background-color: #fff112;
     border-radius: 10px;
     cursor: pointer;
 }
 
-.btn:hover{
+.btn:hover {
     color: var(--tertiary);
     background-color: var(--primary);
 }
-
-
-
 
 /* navbar */
 /* dropdown */
 .dropdown {
     position: relative;
     display: inline-block;
-  }
-  
+}
+
 .dropdown-content {
     display: none;
     position: absolute;
+    right: 1rem;
     background-color: #f9f9f9;
     min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
     padding: 12px 16px;
     z-index: 1;
 }
-  
+
 .dropdown:hover .dropdown-content {
     display: block;
 }
 
-
-
-nav{
+nav {
     background-color: white;
     padding: 10px;
     /* box-shadow: 1px 1px 1px 2px #888888; */
 }
 
-
-nav>.navbar{
-   display: flex;
-   flex-direction:row;
-   justify-content: space-between;
-   padding: 1rem;
+nav > .navbar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 1rem;
 }
 
-
-.nav-content{
+.nav-content {
     display: flex;
-    flex-direction:row;
+    flex-direction: row;
     gap: 1rem;
 }
 
-.nav-content>.nav-item{
+.nav-content > .nav-item {
     text-decoration: none;
     color: var(--primary);
 }
 
-.nav-content>.nav-item>span:hover{
+.nav-content > .nav-item > span:hover {
     padding-bottom: 20px;
     border-bottom: 3px solid var(--primary);
 }
@@ -122,31 +112,26 @@ nav.scrolled {
     background-color: #ffffff; /* Warna navbar */
 }
 
-
-
 /* Jumbotron */
 
-.jumbotron{
+.jumbotron {
     margin-top: 3px;
-    background-image: linear-gradient(#DDC7FF, #004165);
+    background-image: linear-gradient(#ddc7ff, #004165);
 }
 
-
-
-.jumbotron .container .row{
+.jumbotron .container .row {
     display: flex;
     justify-content: center;
     gap: 5rem;
 }
 
-.jumbotron .container .row .col{
+.jumbotron .container .row .col {
     margin: 5rem;
 }
 
 /* card */
 
-
-.promote-card{
+.promote-card {
     margin: -3rem 2rem 0 2rem;
     display: flex;
     box-shadow: 1px 1px 1px 1px #888888;
@@ -156,9 +141,8 @@ nav.scrolled {
     padding: 1rem;
 }
 
-
 /* destinasi/main */
-.destinasi{
+.destinasi {
     /* margin: 0 10rem 0 10rem !important; */
     display: flex;
     flex-direction: column;
@@ -166,7 +150,7 @@ nav.scrolled {
     align-items: center; /* Horizontal */
 }
 
-.destinasi .content{
+.destinasi .content {
     display: flex;
     flex-direction: row;
     justify-content: center;
@@ -175,33 +159,31 @@ nav.scrolled {
     margin-top: 1.5rem;
 }
 
-.content>.card{
-    box-shadow: 1px 1px 1px 1px #888888;   
+.content > .card {
+    box-shadow: 1px 1px 1px 1px #888888;
     /* border-radius: 15px; */
-    align-self: center
+    align-self: center;
 }
 
-.destinasi>.content>.card>img{
+.destinasi > .content > .card > img {
     width: 20rem;
 }
 
-
 /* footer */
-footer{
+footer {
     margin-top: 4.5rem;
-    background-image: linear-gradient(#07324A,#1177B0);
+    background-image: linear-gradient(#07324a, #1177b0);
     font-size: 1.5rem;
     color: white;
 }
 
-.footer{
+.footer {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-
-.footer>.mid-footer{
+.footer > .mid-footer {
     display: flex;
     flex-direction: row;
     margin: 1rem;
@@ -209,15 +191,13 @@ footer{
     text-align: center;
 }
 
-footer>.bot-footer{
+footer > .bot-footer {
     background-color: #004165;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
-
-
 
 @media screen and (max-width: 768px) {
     .container {
@@ -240,7 +220,7 @@ footer>.bot-footer{
     }
 
     /* card responsive */
-    .cards{
+    .cards {
         display: none;
     }
 
@@ -303,7 +283,7 @@ footer>.bot-footer{
         width: 6rem !important;
     }
 
-    .cards{
+    .cards {
         display: none;
     }
 
@@ -354,7 +334,7 @@ footer>.bot-footer{
         font-size: 0.9rem;
     }
 
-    .cards{
+    .cards {
         display: none;
     }
 
@@ -367,10 +347,3 @@ footer>.bot-footer{
         font-size: 0.9rem;
     }
 }
-
-
-
-
-
-
-

@@ -25,7 +25,6 @@ class RouteOptimationController extends Controller
 
         $destinasi = Destinasi::all();
 
-
         
 
         return view("optimasi", compact("data", "destinasi"));

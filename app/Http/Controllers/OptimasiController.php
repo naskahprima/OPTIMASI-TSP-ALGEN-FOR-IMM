@@ -28,9 +28,8 @@ class OptimasiController extends Controller
                      ->with('success', 'Data Berhasil Ditambahkan');
     }
 
-    public function optimasiShow(Request $request){
-
-
+    public function optimasiShow(Request $request)
+    {
        $dataMentah = RuteOptimal::find($request->input("id"));
        $route = json_decode($dataMentah->route);
        $data = [

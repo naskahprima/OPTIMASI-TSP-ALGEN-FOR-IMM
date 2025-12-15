@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 class BobotController extends Controller
 {
     public function index(){
+        
         $destinations = Destinasi::all();
 
         // Ambil semua data matriks jarak

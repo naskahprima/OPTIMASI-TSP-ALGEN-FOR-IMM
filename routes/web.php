@@ -52,8 +52,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('/destinasi/{id}', [DestinasiController::class, 'destroy'])->name('destinasi.destroy');
 
 
-        
-
         Route::get('/bobot', [BobotController::class, 'index'])->name('bobot');
         Route::get('/optimasi', [OptimasiController::class, 'index'])->name('optimasi');
         Route::get('/optimasi/show', [OptimasiController::class, 'optimasiShow'])->name('optimasi.show');
@@ -62,8 +60,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/optimasi/generate', [OptimasiController::class, 'generate'])->name('optimasi.generate');
         Route::post('/optimasi/generate/store', [OptimasiController::class, 'store'])->name('optimasi.generate.store');
         // optimasi.destroy
-
-
     });
 });
 
