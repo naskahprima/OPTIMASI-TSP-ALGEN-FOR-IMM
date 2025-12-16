@@ -79,25 +79,46 @@
 
 @push('scripts')
 <script>
-    function initMap() {
-        const defaultLocation = { lat: -0.033271, lng: 109.333557 }; // Set default location
-
-        const map = new google.maps.Map(document.getElementById("map"), {
-            zoom: 12,
-            center: defaultLocation,
+    // Inisialisasi map setelah document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        // Koordinat default (Pontianak)
+        const defaultLat = -0.033271;
+        const defaultLng = 109.333557;
+        
+        // Inisialisasi Leaflet map
+        const map = L.map('map').setView([defaultLat, defaultLng], 13);
+        
+        // Tambahkan tile layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19,
+        }).addTo(map);
+        
+        // Buat marker yang bisa di-drag
+        const marker = L.marker([defaultLat, defaultLng], {
+            draggable: true
+        }).addTo(map);
+        
+        // Popup untuk info marker
+        marker.bindPopup('<b>Drag marker ini!</b><br>Pilih lokasi destinasi.').openPopup();
+        
+        // Update input lat/lng saat marker di-drag
+        marker.on('dragend', function(event) {
+            const position = event.target.getLatLng();
+            document.getElementById('lat').value = position.lat.toFixed(6);
+            document.getElementById('lng').value = position.lng.toFixed(6);
         });
-
-        const marker = new google.maps.Marker({
-            position: defaultLocation,
-            map: map,
-            draggable: true,
+        
+        // Optional: Click map untuk pindah marker
+        map.on('click', function(e) {
+            marker.setLatLng(e.latlng);
+            document.getElementById('lat').value = e.latlng.lat.toFixed(6);
+            document.getElementById('lng').value = e.latlng.lng.toFixed(6);
         });
-
-        google.maps.event.addListener(marker, 'position_changed', function() {
-            const position = marker.getPosition();
-            document.getElementById('lat').value = position.lat();
-            document.getElementById('lng').value = position.lng();
-        });
-    }
+        
+        // Set initial values
+        document.getElementById('lat').value = defaultLat;
+        document.getElementById('lng').value = defaultLng;
+    });
 </script>
 @endpush

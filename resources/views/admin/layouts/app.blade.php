@@ -12,10 +12,27 @@
     <link href="{{ asset('css/sb-admin-2.min.css') }}" rel="stylesheet">
     <link href='/img/kominfo-logo.png' rel='shortcut icon'>
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+    
     <style>
         #map {
-            height: 400px; /* Adjust the height as needed */
-            width: 100%; /* Make sure the map fills the container */
+            height: 400px;
+            width: 100%;
+            z-index: 1; /* Penting untuk Leaflet */
+        }
+        
+        /* Style untuk Leaflet markers & popups */
+        .leaflet-container {
+            font-family: 'Nunito', sans-serif;
+        }
+        
+        .leaflet-popup-content {
+            margin: 10px 15px;
+            line-height: 1.4;
         }
     </style>
     @stack('scripts')
@@ -32,12 +49,18 @@
             @include('admin.layouts.partials.footer')
         </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('vendor/jquery-easing/jquery.easing.min.js') }}"></script>
     <script src="{{ asset('js/sb-admin-2.min.js') }}"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&callback=initMap" async defer></script>
+    
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+    
     @stack('scripts')
 </body>
 </html>
