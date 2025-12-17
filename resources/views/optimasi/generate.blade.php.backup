@@ -1,101 +1,167 @@
 @extends('admin.layouts.app')
 
-@section('title', 'Detail Rute Optimal')
+@section('title', 'Generate Page')
 
 @section('content')
 <div class="container">
-    @php
-        $resultData = $data
-    @endphp
+    @if(session('result') || isset($result))
+        @php
+            $resultData = session('result') ?? $result;
+        @endphp
 
-    <!-- Alert Hasil -->
-    <div class="alert alert-success glass-alert">
-        <h4>✅ Rute Optimal Tersimpan:</h4>
-        <p><strong>Rute:</strong> 
-            @php
-                $idToNameMap = $destinasi->pluck('name', 'id')->toArray();
-                $routeNames = array_map(function($id) use ($idToNameMap) {
-                    return $idToNameMap[$id] ?? $id;
-                }, $resultData['chromosome']);
-            @endphp
-            {{ implode(' → ', $routeNames) }}
-        </p>
-        <p><strong>Total Jarak (OSRM):</strong> {{ $resultData['distance_km'] }} km</p>
-    </div>
+        <!-- Alert Hasil Optimasi -->
+        <div class="alert alert-success glass-alert">
+            <h4>✅ Hasil Optimasi:</h4>
+            <p><strong>Rute:</strong> 
+                @php
+                    $idToNameMap = $destinasi->pluck('name', 'id')->toArray();
+                    $routeNames = array_map(function($id) use ($idToNameMap) {
+                        return $idToNameMap[$id] ?? $id;
+                    }, $resultData['chromosome']);
+                @endphp
+                {{ implode(' → ', $routeNames) }}
+            </p>
+            <p><strong>Total Jarak (OSRM):</strong> {{ $resultData['distance_km'] }} km</p>
+            <p><strong>Waktu Generate:</strong> {{ $resultData['execution_time'] }}</p>
+            <p><strong>Fitness:</strong> {{ number_format($resultData['fitness'], 6) }}</p>
+        </div>
 
-    <!-- Disclaimer -->
-    <div class="alert alert-info glass-alert-info">
-        <h5>⚠️ CATATAN TENTANG VISUALISASI:</h5>
+        <!-- Disclaimer -->
+        <div class="alert alert-info glass-alert-info">
+            <h5>⚠️ CATATAN PENTING TENTANG VISUALISASI RUTE:</h5>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>🔵 GARIS BIRU (Jarak Udara):</h6>
+                    <ul class="small">
+                        <li>Menunjukkan jarak lurus antar destinasi</li>
+                        <li>Dihitung menggunakan formula Haversine</li>
+                        <li><strong>TIDAK mewakili rute yang bisa dilalui</strong></li>
+                        <li>Mungkin melewati sungai, gunung, atau obstacle</li>
+                        <li>Hanya untuk <strong>perbandingan jarak teoritis</strong></li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>🔴 GARIS MERAH (Rute Sebenarnya):</h6>
+                    <ul class="small">
+                        <li>Menunjukkan rute yang bisa dilalui kendaraan</li>
+                        <li>Dihitung dari data jalan via OSRM</li>
+                        <li>Mempertimbangkan jembatan, jalan, dan obstacle</li>
+                        <li><strong>GUNAKAN INI sebagai panduan perjalanan</strong></li>
+                        <li>Data akurat dari peta jalan sebenarnya</li>
+                    </ul>
+                </div>
+            </div>
+            <p class="mb-0 mt-2"><strong>💡 Tips:</strong> Jika perbedaan jarak signifikan (contoh: Biru 8km, Merah 15km), artinya rute jalan memerlukan perputaran atau melewati jembatan.</p>
+        </div>
+
         <div class="row">
-            <div class="col-md-6">
-                <h6>🔵 GARIS BIRU (Jarak Udara):</h6>
-                <ul class="small">
-                    <li>Jarak lurus antar destinasi (Haversine)</li>
-                    <li><strong>TIDAK bisa dilalui</strong> - hanya visualisasi</li>
-                    <li>Mungkin melewati sungai/gunung</li>
-                </ul>
-            </div>
-            <div class="col-md-6">
-                <h6>🔴 GARIS MERAH (Rute Jalan):</h6>
-                <ul class="small">
-                    <li>Rute sebenarnya via jalan (OSRM)</li>
-                    <li><strong>GUNAKAN INI</strong> untuk panduan</li>
-                    <li>Mempertimbangkan jembatan & jalan</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <!-- Map -->
-        <div class="col-md-8">
-            <div class="card glass-card shadow-lg mb-4">
-                <div class="card-header glass-header py-3">
-                    <h6 class="m-0 font-weight-bold text-white">🗺️ Visualisasi Rute</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div id="map" style="height: 600px;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="col-md-4">
-            <!-- Comparison -->
-            <div class="card glass-card shadow-lg mb-3">
-                <div class="card-header glass-header py-3">
-                    <h6 class="m-0 font-weight-bold text-white">📊 Perbandingan Jarak</h6>
-                </div>
-                <div class="card-body">
-                    <div id="distance-comparison">
-                        <div class="comparison-loading">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2">Menghitung...</p>
-                        </div>
+            <!-- Map Container -->
+            <div class="col-md-8">
+                <div class="card glass-card shadow-lg mb-4">
+                    <div class="card-header glass-header py-3">
+                        <h6 class="m-0 font-weight-bold text-white">🗺️ Visualisasi Rute</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="map" style="height: 600px;"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Directions -->
-            <div class="card glass-card shadow-lg mb-4">
-                <div class="card-header glass-header py-3">
-                    <h6 class="m-0 font-weight-bold text-white">🧭 Petunjuk Arah</h6>
+            <!-- Sidebar -->
+            <div class="col-md-4">
+                <!-- Comparison Panel -->
+                <div class="card glass-card shadow-lg mb-3">
+                    <div class="card-header glass-header py-3">
+                        <h6 class="m-0 font-weight-bold text-white">📊 Perbandingan Jarak</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="distance-comparison">
+                            <div class="comparison-loading">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                                <p class="mt-2">Menghitung jarak...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body p-0">
-                    <div id="directions-panel" style="height: 400px; overflow-y: auto;"></div>
+
+                <!-- Directions Panel -->
+                <div class="card glass-card shadow-lg mb-4">
+                    <div class="card-header glass-header py-3">
+                        <h6 class="m-0 font-weight-bold text-white">🧭 Petunjuk Arah</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="directions-panel" style="height: 400px; overflow-y: auto;"></div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Back Button -->
-    <a href="{{ route('optimasi') }}" class="btn btn-secondary btn-lg btn-block glass-button-secondary mb-5">
-        ← Kembali ke Daftar Optimasi
-    </a>
+        <!-- Save Button -->
+        <form action="{{ route('optimasi.store') }}" method="POST">
+            @csrf
+            <input name="solusi" type="hidden" value="{{ json_encode($resultData['chromosome']) }}">
+            <input name="jarak" type="hidden" value="{{ $resultData['distance_km'] }}">
+            <button type="submit" class="btn btn-primary btn-lg btn-block glass-button mb-5">
+                💾 Simpan Data Optimasi
+            </button>
+        </form>
+    @endif
+
+    <!-- Form Generate -->
+    <div class="card glass-card shadow-lg mb-4">
+        <div class="card-header glass-header py-3">
+            <h6 class="m-0 font-weight-bold text-white">⚙️ Generate Optimasi Baru</h6>
+        </div>
+        <div class="card-body">
+            <form action="{{ route('optimasi.generate.store') }}" method="post">
+                @csrf
+                <div class="form-row m-2">
+                    <div class="col">
+                        <label for="kromosom"><strong>Jumlah Kromosom</strong></label>
+                        <input type="number" name="kromosom" class="form-control glass-input" value="10" placeholder="10" required>
+                    </div>
+                    <div class="col">
+                        <label for="max_gen"><strong>Maksimal Generasi</strong></label>
+                        <input type="number" name="max_gen" class="form-control glass-input" value="10" placeholder="10" required>
+                    </div>
+                    <div class="col">
+                        <label for="titik_awal"><strong>Titik Awal</strong></label>
+                        <select class="custom-select glass-input" name="titik_awal" required>
+                            @foreach($destinasi as $des)
+                                <option value="{{ $des->id }}">{{ $des->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row m-2">
+                    <div class="col">
+                        <label for="crossover_rate"><strong>Crossover Rate</strong></label>
+                        <input type="text" value="0.8" name="crossover_rate" class="form-control glass-input" placeholder="0.8" required>
+                    </div>
+                    <div class="col">
+                        <label for="mutation_rate"><strong>Mutation Rate</strong></label>
+                        <input type="text" value="0.1" name="mutation_rate" class="form-control glass-input" placeholder="0.1" required>
+                    </div>
+                </div>
+                
+                <div class="form-row m-2">
+                    <div class="col text-center">
+                        <button type="submit" class="btn btn-primary btn-lg glass-button">
+                            🚀 Generate Rute Optimal
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
-<!-- Styles (sama dengan generate.blade.php) -->
+<!-- Styles -->
 <style>
+/* Glassmorphism Theme */
 .glass-card {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -123,21 +189,36 @@
     border-radius: 10px;
 }
 
-.glass-button-secondary {
-    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+.glass-input {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.glass-input:focus {
+    background: rgba(255, 255, 255, 1);
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.glass-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
     border-radius: 10px;
     padding: 12px 30px;
     color: white;
     font-weight: bold;
     transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
-.glass-button-secondary:hover {
+.glass-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
 }
 
+/* Map Controls */
 .leaflet-control-custom {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -156,6 +237,7 @@
 .leaflet-control-custom:hover {
     background: rgba(255, 255, 255, 1);
     transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
 
 .leaflet-control-custom.active {
@@ -163,6 +245,7 @@
     color: white;
 }
 
+/* Comparison Panel */
 .comparison-item {
     padding: 15px;
     margin-bottom: 10px;
@@ -191,6 +274,12 @@
     color: #667eea;
 }
 
+/* Directions Panel */
+#directions-panel {
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.9em;
+}
+
 .route-summary {
     padding: 15px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -215,6 +304,17 @@
     font-size: 0.85em;
 }
 
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.glass-card {
+    animation: fadeIn 0.5s ease;
+}
+
+/* Marker Popup Custom */
 .leaflet-popup-content-wrapper {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
@@ -227,23 +327,32 @@
 }
 </style>
 
-<!-- JavaScript (sama dengan generate.blade.php, tapi pakai $data bukan $result) -->
+<!-- JavaScript -->
 <script>
 let map;
 let markers = [];
-let straightPolyline;
-let routePolyline;
+let straightPolyline; // Polyline BIRU (garis lurus)
+let routePolyline;    // Polyline MERAH (OSRM)
 let isStraightVisible = true;
 let isRouteVisible = true;
 
 document.addEventListener('DOMContentLoaded', function() {
-    initializeMap();
+    @if(isset($result))
+        initializeMap();
+    @endif
 });
 
 function initializeMap() {
     const destinations = @json($destinasi);
-    const route = @json($data['chromosome']);
     
+    @if(isset($result) && isset($result['chromosome']))
+        const route = @json($result['chromosome']);
+    @else
+        console.error('Result data not available');
+        return;
+    @endif
+    
+    // Convert route IDs ke koordinat
     const coordinates = route.map(id => {
         const destination = destinations.find(d => d.id == id);
         return {
@@ -256,17 +365,25 @@ function initializeMap() {
         };
     });
     
+    // Inisialisasi map
     map = L.map('map').setView([coordinates[0].lat, coordinates[0].lng], 12);
     
+    // Tile layer dengan style modern
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19,
     }).addTo(map);
     
+    // Buat markers
     createMarkers(coordinates);
+    
+    // Buat polyline BIRU (garis lurus)
     createStraightPolyline(coordinates);
+    
+    // Get route dari OSRM (polyline MERAH)
     getOSRMRoute(coordinates);
     
+    // Fit bounds
     const bounds = L.latLngBounds(coordinates.map(c => [c.lat, c.lng]));
     map.fitBounds(bounds, { padding: [50, 50] });
 }
@@ -293,6 +410,7 @@ function createMarkers(coordinates) {
                     color: white;
                     font-weight: bold;
                     font-size: 14px;
+                    transition: all 0.3s ease;
                 ">
                     ${String.fromCharCode(65 + index)}
                 </div>
@@ -303,6 +421,7 @@ function createMarkers(coordinates) {
         
         const marker = L.marker([coord.lat, coord.lng], { icon: customIcon }).addTo(map);
         
+        // Popup dengan foto
         const imgUrl = coord.img ? `{{ asset('storage/images/destinations/') }}/${coord.img}` : '';
         const popupContent = `
             <div style="min-width: 200px;">
@@ -318,6 +437,7 @@ function createMarkers(coordinates) {
         
         marker.bindPopup(popupContent);
         
+        // Click to zoom
         marker.on('click', function() {
             map.flyTo([coord.lat, coord.lng], 15, {
                 animate: true,
@@ -332,6 +452,7 @@ function createMarkers(coordinates) {
 function createStraightPolyline(coordinates) {
     const latlngs = coordinates.map(c => [c.lat, c.lng]);
     
+    // Hitung total jarak Haversine
     let totalStraightDistance = 0;
     for (let i = 0; i < coordinates.length - 1; i++) {
         totalStraightDistance += haversineDistance(
@@ -348,7 +469,8 @@ function createStraightPolyline(coordinates) {
         smoothFactor: 1
     }).addTo(map);
     
-    window.straightDistance = totalStraightDistance / 1000;
+    // Simpan untuk comparison panel
+    window.straightDistance = totalStraightDistance / 1000; // ke km
 }
 
 function getOSRMRoute(coordinates) {
@@ -376,10 +498,16 @@ function getOSRMRoute(coordinates) {
                     smoothFactor: 1
                 }).addTo(map);
                 
-                window.routeDistance = route.distance / 1000;
+                // Simpan untuk comparison
+                window.routeDistance = route.distance / 1000; // ke km
                 
+                // Update comparison panel
                 updateComparisonPanel();
+                
+                // Add toggle buttons
                 addToggleControls();
+                
+                // Display directions
                 displayDirections(route, coordinates);
             } else {
                 document.getElementById('directions-panel').innerHTML = 
@@ -394,7 +522,7 @@ function getOSRMRoute(coordinates) {
 }
 
 function haversineDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3;
+    const R = 6371e3; // Radius bumi dalam meter
     const φ1 = lat1 * Math.PI / 180;
     const φ2 = lat2 * Math.PI / 180;
     const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -405,7 +533,7 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
               Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-    return R * c;
+    return R * c; // dalam meter
 }
 
 function updateComparisonPanel() {
@@ -453,10 +581,12 @@ function updateComparisonPanel() {
 }
 
 function addToggleControls() {
+    // Toggle Straight Line
     const toggleStraight = L.control({ position: 'topright' });
     toggleStraight.onAdd = function(map) {
         const button = L.DomUtil.create('div', 'leaflet-control-custom active');
         button.innerHTML = '🔵 Jarak Udara';
+        button.id = 'toggle-straight';
         
         L.DomEvent.on(button, 'click', function() {
             if (isStraightVisible) {
@@ -475,10 +605,12 @@ function addToggleControls() {
     };
     toggleStraight.addTo(map);
     
+    // Toggle Route
     const toggleRoute = L.control({ position: 'topright' });
     toggleRoute.onAdd = function(map) {
         const button = L.DomUtil.create('div', 'leaflet-control-custom active');
         button.innerHTML = '🔴 Rute Jalan';
+        button.id = 'toggle-route';
         
         L.DomEvent.on(button, 'click', function() {
             if (isRouteVisible) {

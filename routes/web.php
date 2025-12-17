@@ -50,6 +50,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/destinasi/{id}/edit', [DestinasiController::class, 'edit'])->name('destinasi.edit');
         Route::put('/destinasi/{id}', [DestinasiController::class, 'update'])->name('destinasi.update');
         Route::delete('/destinasi/{id}', [DestinasiController::class, 'destroy'])->name('destinasi.destroy');
+        // ✅ ROUTE BARU: Reset All Data
+        Route::post('/destinasi/reset-all', [DestinasiController::class, 'resetAll'])->name('destinasi.reset');
 
 
         Route::get('/bobot', [BobotController::class, 'index'])->name('bobot');
@@ -62,5 +64,3 @@ Route::middleware('auth')->group(function () {
         // optimasi.destroy
     });
 });
-
-
