@@ -62,5 +62,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/optimasi/generate', [OptimasiController::class, 'generate'])->name('optimasi.generate');
         Route::post('/optimasi/generate/store', [OptimasiController::class, 'store'])->name('optimasi.generate.store');
         // optimasi.destroy
+
+        
     });
 });

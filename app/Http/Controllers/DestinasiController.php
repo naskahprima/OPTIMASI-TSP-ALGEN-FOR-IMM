@@ -11,8 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Services\OSRMService;
-use Intervention\Image\Facades\Image;
-use Nette\Utils\Image as UtilsImage;
+use Intervention\Image\Laravel\Facades\Image;
 
 class DestinasiController extends Controller
 {
@@ -56,22 +55,26 @@ class DestinasiController extends Controller
         ]);
 
         try {
-            // 2. Upload & Compress Image
+            // 2. Upload & Compress Image (FIXED - Intervention v3 syntax)
             $imageName = null;
             if ($request->hasFile('img')) {
                 $image = $request->file('img');
                 $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 
-                // Compress & resize image (max 800px width)
-                $img = UtilsImage::make($image->getRealPath());
-                $img->resize(800, null, function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
+                // Compress & resize image (max 800px width) using v3 syntax
+                $img = Image::read($image->getRealPath());
+                $img->scale(width: 800); // Auto maintain aspect ratio
                 
-                // Save compressed image
+                // Save compressed image with quality
                 $path = storage_path('app/public/images/destinations/' . $imageName);
-                $img->save($path, 85); // 85% quality
+                
+                // Create directory if not exists
+                $directory = dirname($path);
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+                
+                $img->toJpeg(quality: 85)->save($path); // 85% quality
             }
 
             // 3. Simpan Data ke Database
@@ -191,7 +194,7 @@ class DestinasiController extends Controller
             $destinasi = Destinasi::findOrFail($id);
             $oldImage = $destinasi->img;
 
-            // Update image jika ada
+            // Update image jika ada (FIXED - Intervention v3 syntax)
             if ($request->hasFile('img')) {
                 // Hapus gambar lama
                 if ($oldImage && Storage::exists('public/images/destinations/' . $oldImage)) {
@@ -202,14 +205,19 @@ class DestinasiController extends Controller
                 $image = $request->file('img');
                 $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
                 
-                $img = UtilsImage::make($image->getRealPath());
-                $img->resize(800, null, function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
+                // Compress & resize using v3 syntax
+                $img = Image::read($image->getRealPath());
+                $img->scale(width: 800); // Auto maintain aspect ratio
                 
                 $path = storage_path('app/public/images/destinations/' . $imageName);
-                $img->save($path, 85);
+                
+                // Create directory if not exists
+                $directory = dirname($path);
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0755, true);
+                }
+                
+                $img->toJpeg(quality: 85)->save($path);
                 
                 $destinasi->img = $imageName;
             }
@@ -243,20 +251,48 @@ class DestinasiController extends Controller
             $name = $destinasi->name;
             $image = $destinasi->img;
 
+            Log::info('Starting deletion process', [
+                'id' => $id,
+                'name' => $name,
+                'image' => $image
+            ]);
+
             // Hapus relasi di matriks_jaraks
             MatriksJarak::where('origin_id', $id)
                 ->orWhere('destination_id', $id)
                 ->delete();
 
-            // Hapus gambar
-            if ($image && Storage::exists('public/images/destinations/' . $image)) {
-                Storage::delete('public/images/destinations/' . $image);
+            // Debug: Cek apakah file ada
+            if ($image) {
+                $storagePath = 'public/images/destinations/' . $image;
+                $fullPath = storage_path('app/public/images/destinations/' . $image);
+                
+                Log::info('Image deletion attempt', [
+                    'image_name' => $image,
+                    'storage_path' => $storagePath,
+                    'full_path' => $fullPath,
+                    'file_exists_storage' => Storage::exists($storagePath),
+                    'file_exists_real' => file_exists($fullPath)
+                ]);
+
+                // Try both methods
+                if (Storage::exists($storagePath)) {
+                    Storage::delete($storagePath);
+                    Log::info('Image deleted via Storage facade');
+                } elseif (file_exists($fullPath)) {
+                    unlink($fullPath);
+                    Log::info('Image deleted via unlink');
+                } else {
+                    Log::warning('Image file not found', [
+                        'tried_paths' => [$storagePath, $fullPath]
+                    ]);
+                }
             }
 
             // Hapus destinasi
             $destinasi->delete();
 
-            Log::info('Destination deleted', [
+            Log::info('Destination deleted successfully', [
                 'id' => $id,
                 'name' => $name
             ]);
@@ -267,7 +303,8 @@ class DestinasiController extends Controller
         } catch (\Exception $e) {
             Log::error('Error deleting destination', [
                 'id' => $id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return redirect()->back()
@@ -290,8 +327,6 @@ class DestinasiController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
-
             // 1. Hapus semua gambar destinasi
             $images = Destinasi::pluck('img')->filter();
             foreach ($images as $image) {
@@ -300,29 +335,29 @@ class DestinasiController extends Controller
                 }
             }
 
-            // 2. Hapus semua data dari database
+            // 2. Hapus semua data dari database (TANPA transaction untuk truncate)
+            DB::statement('SET FOREIGN_KEY_CHECKS=0'); // Disable foreign key checks
+            
             MatriksJarak::truncate();
             RuteOptimal::truncate();
             Destinasi::truncate();
+            
+            DB::statement('SET FOREIGN_KEY_CHECKS=1'); // Re-enable foreign key checks
 
             // 3. Log aktivitas
             Log::warning('ALL DATA RESET', [
-                'user' => auth()->user()->name,
-                'email' => auth()->user()->email,
+                'user' => auth()->user()->name ?? 'Unknown',
+                'email' => auth()->user()->email ?? 'Unknown',
                 'timestamp' => now()
             ]);
-
-            DB::commit();
 
             return redirect()->route('destinasi.index')
                 ->with('success', '✅ Semua data berhasil direset! Database kosong.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
-
             Log::error('Error resetting all data', [
                 'error' => $e->getMessage(),
-                'user' => auth()->user()->email
+                'user' => auth()->user()->email ?? 'Unknown'
             ]);
 
             return redirect()->back()

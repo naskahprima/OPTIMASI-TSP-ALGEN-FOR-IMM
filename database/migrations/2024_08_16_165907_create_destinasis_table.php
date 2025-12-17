@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('destination_code')->nullable()->unique();
             $table->string('name', 50);
-            $table->string('description', 250);
+            $table->text('description'); // ← UBAH dari string() jadi text()
             $table->float('lat');
             $table->float('lng');
             $table->string('img')->nullable();
+            $table->timestamps(); // ← PASTIKAN ADA INI!
         });
     }
 

@@ -380,69 +380,98 @@ function hideLoading() {
     document.getElementById('loadingOverlay').style.display = 'none';
 }
 
-$(function () { $('[data-toggle="tooltip"]').tooltip(); });
-
-// ✅ FIXED: Map initialization with double-init prevention
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, checking for result...');
-    
-    if (mapInitialized) {
-        console.log('Map already initialized, skipping...');
-        return;
+// Initialize tooltips - WAIT FOR JQUERY
+function initTooltips() {
+    if (typeof $ !== 'undefined' && $.fn && $.fn.tooltip) {
+        $('[data-toggle="tooltip"]').tooltip();
+    } else {
+        setTimeout(initTooltips, 100);
     }
+}
+
+// ✅ ULTIMATE FIX - Map initialization
+window.addEventListener('load', function() {
+    console.log('Window loaded, starting initialization...');
     
     @if(isset($result) && isset($result['chromosome']))
-        const resultCard = document.querySelector('.alert-success.glass-alert');
-        
-        if (resultCard) {
-            console.log('Result card found! Initializing map...');
+        setTimeout(() => {
+            console.log('Checking for result card...');
+            const resultCard = document.querySelector('.alert-success.glass-alert');
+            const mapContainer = document.getElementById('map');
             
-            try {
-                initializeMap();
-                mapInitialized = true;
-            } catch(error) {
-                console.error('Error initializing map:', error);
+            console.log('Result card:', resultCard ? 'FOUND' : 'NOT FOUND');
+            console.log('Map container:', mapContainer ? 'FOUND' : 'NOT FOUND');
+            console.log('Leaflet loaded:', typeof L !== 'undefined' ? 'YES' : 'NO');
+            
+            if (resultCard && mapContainer && typeof L !== 'undefined') {
+                if (mapInitialized) {
+                    console.log('Map already initialized, skipping');
+                    return;
+                }
                 
-                if (error.message && error.message.includes('already initialized')) {
-                    console.log('Map already exists, removing and re-initializing...');
-                    
-                    if (typeof map !== 'undefined' && map) {
+                console.log('All checks passed! Initializing map now...');
+                
+                // Force clean
+                if (typeof map !== 'undefined' && map) {
+                    console.log('Cleaning old map...');
+                    try {
+                        map.off();
                         map.remove();
-                        map = null;
+                    } catch(e) {
+                        console.log('Clean error (ignore):', e);
                     }
-                    
-                    markers = [];
-                    straightPolyline = null;
-                    routePolyline = null;
-                    
+                }
+                
+                map = null;
+                markers = [];
+                straightPolyline = null;
+                routePolyline = null;
+                
+                try {
                     initializeMap();
                     mapInitialized = true;
+                    console.log('✅ Map initialized successfully!');
+                } catch(error) {
+                    console.error('❌ FATAL ERROR:', error);
+                    alert('Map initialization failed: ' + error.message);
                 }
+            } else {
+                console.log('❌ Prerequisites not met');
+                if (!resultCard) console.log('- Missing result card');
+                if (!mapContainer) console.log('- Missing map container');
+                if (typeof L === 'undefined') console.log('- Leaflet not loaded');
             }
-        }
+            
+            // Init tooltips after everything
+            initTooltips();
+        }, 300);
     @else
-        console.log('No result data, skipping map initialization');
+        console.log('No result data from backend');
+        initTooltips();
     @endif
 });
 
 function initializeMap() {
-    // ✅ DESTROY OLD MAP FIRST (FIX DOUBLE INIT)
+    console.log('=== initializeMap() called ===');
+    
+    // ✅ DESTROY OLD MAP FIRST
     if (typeof map !== 'undefined' && map) {
-        console.log('Removing old map...');
+        console.log('Removing existing map instance...');
         try {
+            map.off();
             map.remove();
         } catch(e) {
-            console.log('Error removing map:', e);
+            console.log('Remove error (ignore):', e);
         }
         map = null;
     }
     
-    // Clear old data
+    // Clear arrays
     markers = [];
     straightPolyline = null;
     routePolyline = null;
     
-    console.log('Initializing fresh map...');
+    console.log('Creating fresh map...');
     
     const destinations = @json($destinasi);
     
@@ -453,8 +482,15 @@ function initializeMap() {
         return;
     @endif
     
+    console.log('Destinations:', destinations.length);
+    console.log('Route:', route);
+    
     const coordinates = route.map(id => {
         const destination = destinations.find(d => d.id == id);
+        if (!destination) {
+            console.error('Destination not found for id:', id);
+            return null;
+        }
         return {
             id: id,
             lat: parseFloat(destination.lat),
@@ -463,17 +499,37 @@ function initializeMap() {
             description: destination.description,
             img: destination.img
         };
-    });
+    }).filter(c => c !== null);
     
+    console.log('Coordinates:', coordinates);
+    
+    if (coordinates.length === 0) {
+        console.error('No valid coordinates!');
+        return;
+    }
+    
+    console.log('Creating Leaflet map...');
     map = L.map('map').setView([coordinates[0].lat, coordinates[0].lng], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
+    console.log('Map created:', map);
     
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        attribution: '&copy; OpenStreetMap', 
+        maxZoom: 19 
+    }).addTo(map);
+    
+    console.log('Creating markers...');
     createMarkers(coordinates);
+    
+    console.log('Creating straight polyline...');
     createStraightPolyline(coordinates);
+    
+    console.log('Getting OSRM route...');
     getOSRMRoute(coordinates);
     
     const bounds = L.latLngBounds(coordinates.map(c => [c.lat, c.lng]));
     map.fitBounds(bounds, { padding: [50, 50] });
+    
+    console.log('=== initializeMap() completed ===');
 }
 
 function createMarkers(coordinates) {
