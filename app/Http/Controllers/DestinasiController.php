@@ -171,146 +171,111 @@ class DestinasiController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        $request->validate([
-            'destination_code' => 'required|string|max:10|unique:destinasis,destination_code,' . $id,
-            'name' => 'required|string|max:255',
-            'description' => 'required|string|max:1000',
-            'img' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'lat' => 'required|numeric|between:-90,90',
-            'lng' => 'required|numeric|between:-180,180',
-        ], [
-            'destination_code.required' => '❌ Kode destinasi harus diisi',
-            'destination_code.unique' => '❌ Kode destinasi sudah digunakan',
-            'name.required' => '❌ Nama destinasi harus diisi',
-            'description.required' => '❌ Deskripsi harus diisi',
-            'img.image' => '❌ File harus berupa gambar',
-            'img.max' => '❌ Ukuran gambar maksimal 2MB',
-            'lat.required' => '❌ Latitude harus diisi',
-            'lng.required' => '❌ Longitude harus diisi',
+{
+    $request->validate([
+        'destination_code' => 'required|string|max:10|unique:destinasis,destination_code,' . $id,
+        'name' => 'required|string|max:255',
+        'description' => 'required|string|max:1000',
+        'img' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+        'lat' => 'required|numeric|between:-90,90',
+        'lng' => 'required|numeric|between:-180,180',
+    ]);
+
+    try {
+        $destinasi = Destinasi::findOrFail($id);
+        $oldImage = $destinasi->img;
+
+        // ✅ FIXED: Update image jika ada
+        if ($request->hasFile('img')) {
+            // Hapus gambar lama
+            if ($oldImage && Storage::disk('public')->exists('images/destinations/' . $oldImage)) {
+                Storage::disk('public')->delete('images/destinations/' . $oldImage);
+            }
+
+            // ✅ FIXED: Upload gambar baru menggunakan Storage facade (untuk support fake di test)
+            $image = $request->file('img');
+            $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
+            
+            // Gunakan storeAs agar konsisten dengan Storage fake
+            $image->storeAs('images/destinations', $imageName, 'public');
+            
+            // Jika butuh compress, lakukan setelah upload
+            if (class_exists(\Intervention\Image\Laravel\Facades\Image::class)) {
+                $fullPath = storage_path('app/public/images/destinations/' . $imageName);
+                if (file_exists($fullPath)) {
+                    $img = \Intervention\Image\Laravel\Facades\Image::read($fullPath);
+                    $img->scale(width: 800);
+                    $img->toJpeg(quality: 85)->save($fullPath);
+                }
+            }
+            
+            $destinasi->img = $imageName;
+        }
+
+        $destinasi->destination_code = $request->destination_code;
+        $destinasi->name = $request->name;
+        $destinasi->description = $request->description;
+        $destinasi->lat = $request->lat;
+        $destinasi->lng = $request->lng;
+        $destinasi->save();
+
+        return redirect()->route('destinasi.index')
+            ->with('success', '✅ Destinasi "' . $destinasi->name . '" berhasil diupdate!');
+
+    } catch (\Exception $e) {
+        Log::error('Error updating destination', [
+            'id' => $id,
+            'error' => $e->getMessage()
         ]);
 
-        try {
-            $destinasi = Destinasi::findOrFail($id);
-            $oldImage = $destinasi->img;
-
-            // Update image jika ada (FIXED - Intervention v3 syntax)
-            if ($request->hasFile('img')) {
-                // Hapus gambar lama
-                if ($oldImage && Storage::exists('public/images/destinations/' . $oldImage)) {
-                    Storage::delete('public/images/destinations/' . $oldImage);
-                }
-
-                // Upload gambar baru
-                $image = $request->file('img');
-                $imageName = time() . '_' . uniqid() . '.' . $image->getClientOriginalExtension();
-                
-                // Compress & resize using v3 syntax
-                $img = Image::read($image->getRealPath());
-                $img->scale(width: 800); // Auto maintain aspect ratio
-                
-                $path = storage_path('app/public/images/destinations/' . $imageName);
-                
-                // Create directory if not exists
-                $directory = dirname($path);
-                if (!file_exists($directory)) {
-                    mkdir($directory, 0755, true);
-                }
-                
-                $img->toJpeg(quality: 85)->save($path);
-                
-                $destinasi->img = $imageName;
-            }
-
-            $destinasi->destination_code = $request->destination_code;
-            $destinasi->name = $request->name;
-            $destinasi->description = $request->description;
-            $destinasi->lat = $request->lat;
-            $destinasi->lng = $request->lng;
-            $destinasi->save();
-
-            return redirect()->route('destinasi.index')
-                ->with('success', '✅ Destinasi "' . $destinasi->name . '" berhasil diupdate!');
-
-        } catch (\Exception $e) {
-            Log::error('Error updating destination', [
-                'id' => $id,
-                'error' => $e->getMessage()
-            ]);
-
-            return redirect()->back()
-                ->withInput()
-                ->with('error', '❌ Terjadi kesalahan: ' . $e->getMessage());
-        }
+        return redirect()->back()
+            ->withInput()
+            ->with('error', '❌ Terjadi kesalahan: ' . $e->getMessage());
     }
+}
 
     public function destroy($id)
-    {
-        try {
-            $destinasi = Destinasi::findOrFail($id);
-            $name = $destinasi->name;
-            $image = $destinasi->img;
+{
+    try {
+        $destinasi = Destinasi::findOrFail($id); // ✅ Ini otomatis throw 404
+        $name = $destinasi->name;
+        $image = $destinasi->img;
 
-            Log::info('Starting deletion process', [
-                'id' => $id,
-                'name' => $name,
-                'image' => $image
-            ]);
+        // Hapus relasi di matriks_jaraks
+        MatriksJarak::where('origin_id', $id)
+            ->orWhere('destination_id', $id)
+            ->delete();
 
-            // Hapus relasi di matriks_jaraks
-            MatriksJarak::where('origin_id', $id)
-                ->orWhere('destination_id', $id)
-                ->delete();
-
-            // Debug: Cek apakah file ada
-            if ($image) {
-                $storagePath = 'public/images/destinations/' . $image;
-                $fullPath = storage_path('app/public/images/destinations/' . $image);
-                
-                Log::info('Image deletion attempt', [
-                    'image_name' => $image,
-                    'storage_path' => $storagePath,
-                    'full_path' => $fullPath,
-                    'file_exists_storage' => Storage::exists($storagePath),
-                    'file_exists_real' => file_exists($fullPath)
-                ]);
-
-                // Try both methods
-                if (Storage::exists($storagePath)) {
-                    Storage::delete($storagePath);
-                    Log::info('Image deleted via Storage facade');
-                } elseif (file_exists($fullPath)) {
-                    unlink($fullPath);
-                    Log::info('Image deleted via unlink');
-                } else {
-                    Log::warning('Image file not found', [
-                        'tried_paths' => [$storagePath, $fullPath]
-                    ]);
-                }
-            }
-
-            // Hapus destinasi
-            $destinasi->delete();
-
-            Log::info('Destination deleted successfully', [
-                'id' => $id,
-                'name' => $name
-            ]);
-
-            return redirect()->route('destinasi.index')
-                ->with('success', '✅ Destinasi "' . $name . '" berhasil dihapus!');
-
-        } catch (\Exception $e) {
-            Log::error('Error deleting destination', [
-                'id' => $id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return redirect()->back()
-                ->with('error', '❌ Terjadi kesalahan: ' . $e->getMessage());
+        // ✅ FIXED: Hapus gambar dengan path yang benar
+        if ($image && Storage::disk('public')->exists('images/destinations/' . $image)) {
+            Storage::disk('public')->delete('images/destinations/' . $image);
         }
+
+        // Hapus destinasi
+        $destinasi->delete();
+
+        Log::info('Destination deleted successfully', [
+            'id' => $id,
+            'name' => $name
+        ]);
+
+        return redirect()->route('destinasi.index')
+            ->with('success', '✅ Destinasi "' . $name . '" berhasil dihapus!');
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        // ✅ FIXED: Gunakan abort(404) instead of response()->view()
+        abort(404);
+        
+    } catch (\Exception $e) {
+        Log::error('Error deleting destination', [
+            'id' => $id,
+            'error' => $e->getMessage(),
+        ]);
+
+        return redirect()->back()
+            ->with('error', '❌ Terjadi kesalahan: ' . $e->getMessage());
     }
+}
 
     /**
      * Reset ALL data (destinations, matrix, routes, images)

@@ -29,6 +29,8 @@ class GeneticAlgorithmService
 
     protected function getDistanceMatrix()
     {
+        // Ambil data dari tabel matriks_jaraks
+        // $distances = MatriksJarak::all();
         $distances = DB::table('matriks_jaraks')->get();
         
         $matrix = [];
@@ -37,8 +39,47 @@ class GeneticAlgorithmService
             $matrix[$row->origin_id][$row->destination_id] = $row->distance;
         }
 
+        // dd($matrix);
         return $matrix;
+
     }
+
+    // public function run()
+    // {
+    //     $startTime = microtime(true); // Catat waktu mulai
+    //     $population = $this->initializePopulation();
+    //     $bestFitness = 0;
+    //     $bestChromosome = [];
+
+    //     for ($gen = 0; $gen < $this->maxGen; $gen++) {
+    //         $fitness = $this->evaluateFitness($population);
+    //         [$bestChromosome, $bestFitness] = $this->getBestChromosome($fitness, $population);
+
+    //         // Seleksi
+    //         $population = $this->selection($population, $fitness);
+
+
+    //         // Crossover
+    //         $population = $this->crossover($population);
+
+    //         // Mutasi
+    //         $population = $this->mutate($population);
+    //     }
+        
+
+    //     $executionTime = microtime(true) - $startTime; // Hitung waktu eksekusi
+
+    //     // Hitung jarak terbaik dalam kilometer
+    //     $totalDistanceInMeters = $this->calculateTotalDistance($bestChromosome);
+    //     $totalDistanceInKilometers = $totalDistanceInMeters / 1000; // Konversi ke km
+
+    //     return [
+    //         'fitness' => $bestFitness,
+    //         'chromosome' => $bestChromosome,
+    //         'distance_km' => $totalDistanceInKilometers,
+    //         'execution_time' => $executionTime . ' seconds',
+    //     ];
+    // }
 
     public function run()
     {
@@ -65,11 +106,13 @@ class GeneticAlgorithmService
 
         return [
             'fitness' => $bestFitness,
-            'chromosome' => $completeRoute,
+            'chromosome' => $completeRoute, // Gunakan rute yang sudah lengkap dengan titik awal di akhir
             'distance_km' => $totalDistanceInKilometers,
             'execution_time' => $executionTime . ' seconds',
         ];
     }
+    
+
 
     protected function initializePopulation()
     {
@@ -87,21 +130,19 @@ class GeneticAlgorithmService
             $population[] = $chromosome;
         }
 
+        // dd($population);
         return $population;
     }
+
+    
+
 
     protected function evaluateFitness($population)
     {
         $fitness = [];
         foreach ($population as $chromosome) {
             $totalDistance = $this->calculateTotalDistance($chromosome);
-            
-            // ✅ FIX #1: Handle INF distance (missing matrix data)
-            if ($totalDistance === INF) {
-                $fitness[] = 0; // Fitness 0 untuk kromosom invalid
-            } else {
-                $fitness[] = 1 / ($totalDistance ?: 1);
-            }
+            $fitness[] = 1 / ($totalDistance ?: 1); // Hindari pembagian oleh nol
         }
         return $fitness;
     }
@@ -113,36 +154,19 @@ class GeneticAlgorithmService
         for ($i = 0; $i < count($chromosome) - 1; $i++) {
             $origin = $chromosome[$i];
             $destination = $chromosome[$i + 1];
-            
-            // ✅ FIX #2: Check if distance exists before accessing
+            $distance += $this->distanceMatrix[$origin][$destination] ?? INF;
+
             if (!isset($this->distanceMatrix[$origin][$destination])) {
-                // Log hanya di development/testing
-                if (config('app.debug')) {
-                    Log::warning("Missing distance: origin $origin to destination $destination");
-                }
-                // Return INF agar kromosom ini dapat fitness rendah
-                return INF;
+                // Log::warning("Missing distance: origin $origin to destination $destination");
+                dump("Missing distance: origin $origin to destination $destination");
             }
-            
-            $distance += $this->distanceMatrix[$origin][$destination];
         }
 
         // Tambahkan jarak kembali ke titik awal
-        $lastDestination = end($chromosome);
-        $firstDestination = $chromosome[0];
-        
-        // ✅ FIX #3: Check return distance
-        if (!isset($this->distanceMatrix[$lastDestination][$firstDestination])) {
-            if (config('app.debug')) {
-                Log::warning("Missing return distance: origin $lastDestination to destination $firstDestination");
-            }
-            return INF;
-        }
-        
-        $distance += $this->distanceMatrix[$lastDestination][$firstDestination];
-        
+        $distance += $this->distanceMatrix[end($chromosome)][$chromosome[0]] ?? INF;
         return $distance;
     }
+
 
     protected function getBestChromosome($fitness, $population)
     {
@@ -152,16 +176,9 @@ class GeneticAlgorithmService
 
     protected function selection($population, $fitness)
     {
+
+        
         $totalFitness = array_sum($fitness);
-        
-        // ✅ FIX #4: Protect against division by zero
-        if ($totalFitness == 0 || $totalFitness < 0.0001) {
-            Log::warning('Total fitness too low or zero, using random selection');
-            // Fallback: return population as-is (random shuffle)
-            shuffle($population);
-            return array_slice($population, 0, count($population));
-        }
-        
         $probabilities = array_map(fn($f) => $f / $totalFitness, $fitness);
 
         $newPopulation = [];
@@ -183,7 +200,12 @@ class GeneticAlgorithmService
 
     protected function crossover($population)
     {
+
+        
+        // dd($population);
         $newPopulation = [];
+
+
 
         for ($i = 0; $i < count($population) / 2; $i++) {
             if (mt_rand() / mt_getrandmax() <= $this->crossoverRate) {
